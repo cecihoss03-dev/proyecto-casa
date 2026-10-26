@@ -12,13 +12,8 @@
   window.CASA = CASA;
 
   /* ---------- 1. Configuración ------------------------------------------ */
-  // Si sirves estos HTML desde wwwroot del mismo proyecto (app.UseStaticFiles()),
-  // también puedes dejarlo vacío ('') y usar rutas relativas.
   CASA.API_BASE = 'http://localhost:5000';
 
-  // Los nombres siguen el de cada clase del modelo. Ajusta si tus
-  // controladores se llaman distinto (p. ej. el tipo de establecimiento
-  // hereda el nombre "TipoEstableciminetos" de tu modelo).
   CASA.endpoints = {
     mascotas:             '/api/Mascotas',
     reportes:             '/api/Reportes',
@@ -29,17 +24,17 @@
     establecimientos:     '/api/Establecimientos',
     tiposEstablecimiento: '/api/TipoEstableciminetos',
     distritos:            '/api/Distritos',
-    rescatistas:          '/api/Rescatistas'
+    rescatistas:          '/api/Rescatistas',
+    authLogin:            '/api/Auth/login',
+    authRegister:         '/api/Auth/register'
   };
 
-  // Centro de Sucre (Plaza 25 de Mayo) para el mapa
   CASA.SUCRE = { lat: -19.0333, lng: -65.2627, zoom: 13 };
 
   /* ---------- 2. Texto seguro y formato --------------------------------- */
   const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   CASA.esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 
-  /** Lee una propiedad sin importar mayúsculas (camelCase o PascalCase). */
   CASA.g = function (obj, ...names) {
     if (obj == null || typeof obj !== 'object') return undefined;
     const keys = Object.keys(obj);
@@ -63,17 +58,15 @@
   const strip = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
   CASA.strip = strip;
 
-  /** Devuelve una URL de imagen segura (http, https, ruta o data:image). */
   CASA.imgUrl = function (v) {
     const s = String(v ?? '').trim();
     if (!s) return '';
     if (/^data:image\/(png|jpe?g|gif|webp|avif);base64,[a-z0-9+/=]+$/i.test(s)) return s;
     if (/^https?:\/\//i.test(s)) return s;
-    if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return '';            // javascript:, file:, etc.
-    return CASA.API_BASE + (s.startsWith('/') ? s : '/' + s);   // ruta relativa a la API
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return '';
+    return CASA.API_BASE + (s.startsWith('/') ? s : '/' + s);
   };
 
-  /** Estado (texto libre) → clase de badge. */
   CASA.estadoClass = function (estado) {
     const s = strip(estado);
     if (!s) return 'is-neutral';
@@ -83,10 +76,8 @@
     if (/(pendiente|proceso|rescate|revision|espera|perdid|abandon|reportad|ocupad)/.test(s)) return 'is-wait';
     return 'is-neutral';
   };
-  CASA.badge = (estado) =>
-    `<span class="casa-badge ${CASA.estadoClass(estado)}">${CASA.esc(estado || 'Sin estado')}</span>`;
+  CASA.badge = (estado) => `<span class="casa-badge ${CASA.estadoClass(estado)}">${CASA.esc(estado || 'Sin estado')}</span>`;
 
-  /** Emoji según especie. */
   CASA.especieEmoji = function (especie) {
     const s = strip(especie);
     if (/(perr|can|dog)/.test(s)) return '🐶';
@@ -96,7 +87,6 @@
     return '🐾';
   };
 
-  /** ColorCinta (nombre en español, hex, rgb…) → color CSS seguro. */
   const COLORES = {
     rojo: '#E5384F', naranja: '#FF7A00', amarillo: '#F6C21A', verde: '#2E9E5B',
     azul: '#0B47C9', celeste: '#3DA5F4', celeste_claro: '#8FD0FF', violeta: '#7A4FD6', morado: '#7A4FD6',
@@ -114,7 +104,6 @@
   };
 
   /* ---------- 3. Geografía --------------------------------------------- */
-  /** "lat, lng" | {"lat":..,"lng":..} | [lat,lng] → [lat,lng] o null. */
   CASA.parseLatLng = function (v) {
     if (v == null || v === '') return null;
     let a, b;
@@ -135,7 +124,6 @@
     return [a, b];
   };
 
-  /** Poligono (GeoJSON, array de pares o "lat,lng;lat,lng") → [[lat,lng],…] o null. */
   CASA.parsePolygon = function (v) {
     if (v == null || v === '') return null;
     let data = v;
@@ -147,12 +135,11 @@
         data = s.split(/[;|\n]+/).map((p) => p.split(/[,\s]+/).filter(Boolean).map(Number));
       }
     }
-    // GeoJSON: Feature / FeatureCollection / Polygon / MultiPolygon
     const geom = (d) => {
       if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
       if (d.type === 'FeatureCollection') return geom(d.features && d.features[0]);
       if (d.type === 'Feature') return geom(d.geometry);
-      if (d.type === 'Polygon') return d.coordinates[0].map(([x, y]) => [y, x]);       // GeoJSON es [lng,lat]
+      if (d.type === 'Polygon') return d.coordinates[0].map(([x, y]) => [y, x]);
       if (d.type === 'MultiPolygon') return d.coordinates[0][0].map(([x, y]) => [y, x]);
       return null;
     };
@@ -161,13 +148,12 @@
 
     if (!Array.isArray(data)) return null;
     let ring = data;
-    while (Array.isArray(ring) && Array.isArray(ring[0]) && Array.isArray(ring[0][0])) ring = ring[0]; // anidado
+    while (Array.isArray(ring) && Array.isArray(ring[0]) && Array.isArray(ring[0][0])) ring = ring[0];
     let pts = ring
       .map((p) => (Array.isArray(p) ? [Number(p[0]), Number(p[1])]
         : (p && typeof p === 'object' ? [Number(CASA.g(p, 'lat', 'latitud')), Number(CASA.g(p, 'lng', 'lon', 'longitud'))] : [NaN, NaN])))
       .filter((p) => isFinite(p[0]) && isFinite(p[1]));
     if (pts.length < 3) return null;
-    // Si vienen como [lng, lat] (p. ej. -65.2, -19.0) los giramos
     if (Math.abs(pts[0][0]) > 40 && Math.abs(pts[0][1]) <= 40) pts = pts.map(([x, y]) => [y, x]);
     return pts;
   };
@@ -209,7 +195,6 @@
     return data;
   }
 
-  /** Acepta [], {$values:[]}, {items:[]}, {data:[]}, {value:[]}. */
   CASA.list = function (data) {
     if (Array.isArray(data)) return data;
     if (data && typeof data === 'object') {
@@ -221,22 +206,75 @@
   CASA.api = {
     get:  (path) => request(path),
     list: async (path) => CASA.list(await request(path)),
-    /** Como list(), pero si falla devuelve [] (para catálogos opcionales). */
     listSoft: async (path) => { try { return CASA.list(await request(path)); } catch (_) { return []; } },
     post: (path, body) => request(path, { method: 'POST', body }),
     put:  (path, body) => request(path, { method: 'PUT', body }),
     del:  (path) => request(path, { method: 'DELETE' })
   };
 
-  /** Indexa una lista por Id → { 1: {...}, 2: {...} }. */
   CASA.byId = (items) => Object.fromEntries(CASA.list(items).map((x) => [CASA.g(x, 'id'), x]));
 
-  /* ---------- 5. Sesión ligera (ID de ciudadano) ------------------------ */
-  // Tu API aún no expone autenticación al frontend; mientras tanto el ID
-  // del ciudadano se recuerda en este navegador.
-  CASA.session = {
-    getCiudadanoId() { try { return localStorage.getItem('casa.ciudadanoId') || ''; } catch (_) { return ''; } },
-    setCiudadanoId(v) { try { localStorage.setItem('casa.ciudadanoId', String(v)); } catch (_) { /* sin almacenamiento */ } }
+  /* ---------- 5. Autenticación y Sesión --------------------------------- */
+  CASA.auth = {
+    async login(email, password, remember) {
+      const response = await fetch(`${CASA.API_BASE}${CASA.endpoints.authLogin}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Correo o contraseña incorrectos');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('casa_token', data.token);
+      localStorage.setItem('casa_user', JSON.stringify(data.user));
+      return data;
+    },
+
+    async register(userData) {
+      const response = await fetch(`${CASA.API_BASE}${CASA.endpoints.authRegister}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const msg = error.errors 
+          ? Object.values(error.errors).flat().join(' ') 
+          : (error.message || 'Error al crear la cuenta');
+        throw new Error(msg);
+      }
+
+      return await response.json();
+    },
+
+    isLoggedIn() {
+      return !!localStorage.getItem('casa_token');
+    },
+
+    user() {
+      const userStr = localStorage.getItem('casa_user');
+      return userStr ? JSON.parse(userStr) : null;
+    },
+
+    logout() {
+      localStorage.removeItem('casa_token');
+      localStorage.removeItem('casa_user');
+      window.location.href = 'login.html';
+    },
+
+    isStaff() {
+      const user = this.user();
+      return user && user.roles && (user.roles.includes('Admin') || user.roles.includes('CEMZOO'));
+    },
+
+    safeNext(url) {
+      return url && url.startsWith('/') && !url.includes('//') ? url : 'index.html';
+    }
   };
 
   /* ---------- 6. Interfaz: estados y avisos ----------------------------- */
@@ -254,9 +292,9 @@
       const offline = err instanceof ApiError && err.status === 0;
       const title = offline ? 'No logramos conectar con el servidor' : 'La API respondió con un error';
       const hint = offline
-        ? `Revisa que el backend esté corriendo en <code>${CASA.esc(CASA.API_BASE)}</code> y que tenga CORS habilitado si abres esta página desde otro puerto.`
+        ? `Revisa que el backend esté corriendo en <code>${CASA.esc(CASA.API_BASE)}</code> y que tenga CORS habilitado.`
         : CASA.esc(err.message || 'Error desconocido');
-      el.innerHTML = `<div class="${wrapClass}"><div class="casa-state casa-state--error" role="alert"><span class="casa-state__emoji" aria-hidden="true">🐕‍🦺</span><h3>${title}</h3><p>${hint}</p>${endpoint ? `<p class="small mb-0">Ruta consultada: <code>${CASA.esc(endpoint)}</code></p>` : ''}</div></div>`;
+      el.innerHTML = `<div class="${wrapClass}"><div class="casa-state casa-state--error" role="alert"><span class="casa-state__emoji" aria-hidden="true">🐕‍🦺</span><h3>${title}</h3><p>${hint}</p>${endpoint ? `<p class="small mb-0">Ruta: <code>${CASA.esc(endpoint)}</code></p>` : ''}</div></div>`;
       el.removeAttribute('aria-busy');
     },
     toast(message, kind = '') {
@@ -276,14 +314,12 @@
     }
   };
 
-  /** Ficha reutilizable del distrito: cinta + nombre. */
   CASA.districtHtml = function (distrito) {
     if (!distrito) return '';
     const color = CASA.cintaColor(CASA.g(distrito, 'colorCinta'));
     return `<span class="pet-card__district"><span class="ribbon-dot" style="--ribbon:${CASA.esc(color)}"></span>${CASA.esc(CASA.g(distrito, 'nombre') || 'Distrito')}</span>`;
   };
 
-  /** Tarjeta de mascota (la usan la home y el catálogo). */
   CASA.petCard = function (m, distritosById, opts = {}) {
     const g = CASA.g, esc = CASA.esc;
     const id = g(m, 'id');
@@ -309,7 +345,7 @@
       <article class="pet-card" style="--ribbon:${esc(ribbon)}">
         <div class="pet-card__photo">
           <div class="pet-card__fallback" aria-hidden="true">${CASA.especieEmoji(especie)}</div>
-          ${foto ? `<img src="${esc(foto)}" alt="Foto de ${esc(nombre)}" loading="lazy" data-fallback>` : ''}
+          ${foto ? `<img src="${esc(foto)}" alt="Foto de ${esc(nombre)}" loading="lazy" data-fallback">` : ''}
           <span class="pet-card__status">${CASA.badge(estado)}</span>
           <span class="pet-card__ribbon"></span>
         </div>
@@ -327,13 +363,11 @@
       </article>`;
   };
 
-  // Si una foto no carga, queda a la vista el emoji de respaldo.
   document.addEventListener('error', (e) => {
     const t = e.target;
     if (t && t.tagName === 'IMG' && t.hasAttribute('data-fallback')) t.remove();
   }, true);
 
-  /** Estrellas (calificación 0–5). */
   CASA.stars = function (n) {
     const v = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
     return `<span class="stars" role="img" aria-label="${(Number(n) || 0).toFixed(1)} de 5">${'★'.repeat(v)}<span class="off">${'★'.repeat(5 - v)}</span></span>`;

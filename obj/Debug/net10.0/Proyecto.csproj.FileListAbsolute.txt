@@ -482,3 +482,15 @@ D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\07o6lgqd7b
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\fc2o0rf56h-{0}-nqvevuyjf6-nqvevuyjf6.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\6lq7v1gfea-{0}-eywpbbvi8w-eywpbbvi8w.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\vuqy806l4g-{0}-c7v29bikqe-c7v29bikqe.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\bin\Debug\net10.0\dotnet-tools.json
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\bin\Debug\net10.0\Proyecto.staticwebassets.runtime.json
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\07o6lgqd7b-{0}-zt4cd3zu4v-zt4cd3zu4v.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\m5agbdcd5j-{0}-kutxs80ne5-kutxs80ne5.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\6lq7v1gfea-{0}-eywpbbvi8w-eywpbbvi8w.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\dr58mfvz33-{0}-32iph26bi6-32iph26bi6.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\gfcuzkfxhp-{0}-4a7sarb4cy-4a7sarb4cy.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\fc2o0rf56h-{0}-nqvevuyjf6-nqvevuyjf6.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\vuqy806l4g-{0}-1crh38y1rh-1crh38y1rh.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\iekvj2yxw5-{0}-n3r86lx712-n3r86lx712.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\w5uzfb3jo9-{0}-cf680mvw0k-cf680mvw0k.gz
+C:\Users\Mauri Cruz\Documents\Proyectos\ProyectoCasa\proyecto-casa\obj\Debug\net10.0\compressed\6d01cs7w2n-{0}-7p8c0baffz-7p8c0baffz.gz
