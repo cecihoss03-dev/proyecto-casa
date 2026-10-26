@@ -131,6 +131,7 @@ async Task SeedDataAsync(IServiceProvider serviceProvider)
     var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var context = serviceProvider.GetRequiredService<AppDbContext>();
 
+    // 1. Crear roles
     string[] roleNames = { "Admin", "CEMZOO", "Veterinaria", "Albergue", "Ciudadano", "Rescatista" };
     foreach (var roleName in roleNames)
     {
@@ -140,25 +141,40 @@ async Task SeedDataAsync(IServiceProvider serviceProvider)
         }
     }
 
-    var adminEmail = "admin@casa.sucre";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-    if (adminUser == null)
+    // 2. Crear usuarios de prueba con diferentes roles
+    var usuariosPrueba = new[]
     {
-        var userToCreate = new ApplicationUser
+        (email: "admin@casa.sucre", password: "Admin123!", role: "Admin", nombre: "Administrador Sistema"),
+        (email: "cemzoo@casa.sucre", password: "Cemzoo123!", role: "CEMZOO", nombre: "Personal CEMZOO"),
+        (email: "albergue@casa.sucre", password: "Albergue123!", role: "Albergue", nombre: "Albergue Patitas"),
+        (email: "veterinaria@casa.sucre", password: "Vet123!", role: "Veterinaria", nombre: "Dr. Juan Pérez"),
+        (email: "ciudadano@casa.sucre", password: "Ciudadano123!", role: "Ciudadano", nombre: "María López"),
+        (email: "rescatista@casa.sucre", password: "Rescatista123!", role: "Rescatista", nombre: "Carlos Rescate")
+    };
+
+    foreach (var (email, password, role, nombre) in usuariosPrueba)
+    {
+        var existingUser = await userManager.FindByEmailAsync(email);
+        if (existingUser == null)
         {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        
-        var result = await userManager.CreateAsync(userToCreate, "Admin123!");
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(userToCreate, "Admin");
-            Console.WriteLine("✅ Usuario admin creado: admin@casa.sucre / Admin123!");
+            var user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                NombreCompleto = nombre,
+                EmailConfirmed = true
+            };
+            
+            var result = await userManager.CreateAsync(user, password);
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(user, role);
+                Console.WriteLine($"✅ Usuario {role} creado: {email} / {password}");
+            }
         }
     }
 
+    // 3. Crear distritos (si no existen)
     if (!context.Distrito.Any())
     {
         var distritos = new List<Distritos>
@@ -169,12 +185,12 @@ async Task SeedDataAsync(IServiceProvider serviceProvider)
             new Distritos { Id = 4, nombre = "Distrito 4", ColorCinta = "Amarillo", Poligono = "POLYGON((-65.29 -19.07, -65.28 -19.07, -65.28 -19.06, -65.29 -19.06, -65.29 -19.07))" },
             new Distritos { Id = 5, nombre = "Distrito 5", ColorCinta = "Naranja", Poligono = "POLYGON((-65.30 -19.08, -65.29 -19.08, -65.29 -19.07, -65.30 -19.07, -65.30 -19.08))" }
         };
-        
         context.Distrito.AddRange(distritos);
         await context.SaveChangesAsync();
-        Console.WriteLine("✅ Distritos de Sucre creados");
+        Console.WriteLine("✅ Distritos creados");
     }
 
+    // 4. Crear tipos de establecimientos
     if (!context.TipoEstablecimineto.Any())
     {
         var tipos = new List<TipoEstableciminetos>
@@ -184,15 +200,14 @@ async Task SeedDataAsync(IServiceProvider serviceProvider)
             new TipoEstableciminetos { Id = 3, nombre = "Peluquería" },
             new TipoEstableciminetos { Id = 4, nombre = "Tienda de Mascotas" }
         };
-        
         context.TipoEstablecimineto.AddRange(tipos);
         await context.SaveChangesAsync();
-        Console.WriteLine("✅ Tipos de establecimientos creados");
     }
 
+    // 5. Crear tipos de reportes
     if (!context.TipoReportes.Any())
     {
-        var tiposReporte = new List<TipoReporte>
+        var tipos = new List<TipoReporte>
         {
             new TipoReporte { Id = 1, nombre = "Animal Abandonado" },
             new TipoReporte { Id = 2, nombre = "Animal Perdido" },
@@ -200,9 +215,109 @@ async Task SeedDataAsync(IServiceProvider serviceProvider)
             new TipoReporte { Id = 4, nombre = "Maltrato Animal" },
             new TipoReporte { Id = 5, nombre = "Mordedura" }
         };
-        
-        context.TipoReportes.AddRange(tiposReporte);
+        context.TipoReportes.AddRange(tipos);
         await context.SaveChangesAsync();
-        Console.WriteLine("✅ Tipos de reportes creados");
     }
+
+    // 6. CREAR MASCOTAS DE PRUEBA (esto es lo que tu compañero necesita)
+    if (!context.Mascota.Any())
+    {
+        var mascotas = new List<Mascotas>
+        {
+            new Mascotas { 
+                nombre = "Firulais", 
+                especie = "Perro", 
+                edad = "2 años", 
+                tamaño = "Mediano", 
+                color = "Café", 
+                caracteristica = "Muy juguetón y cariñoso", 
+                foto = "", 
+                Estado = "Disponible", 
+                DistritoId = 1 
+            },
+            new Mascotas { 
+                nombre = "Michi", 
+                especie = "Gato", 
+                edad = "1 año", 
+                tamaño = "Pequeño", 
+                color = "Negro", 
+                caracteristica = "Tranquilo, ideal para departamentos", 
+                foto = "", 
+                Estado = "Disponible", 
+                DistritoId = 2 
+            },
+            new Mascotas { 
+                nombre = "Rocky", 
+                especie = "Perro", 
+                edad = "3 años", 
+                tamaño = "Grande", 
+                color = "Dorado", 
+                caracteristica = "Protector, necesita espacio", 
+                foto = "", 
+                Estado = "En proceso", 
+                DistritoId = 3 
+            },
+            new Mascotas { 
+                nombre = "Luna", 
+                especie = "Gato", 
+                edad = "6 meses", 
+                tamaño = "Pequeño", 
+                color = "Blanco", 
+                caracteristica = "Muy activa y curiosa", 
+                foto = "", 
+                Estado = "Disponible", 
+                DistritoId = 1 
+            },
+            new Mascotas { 
+                nombre = "Max", 
+                especie = "Perro", 
+                edad = "5 años", 
+                tamaño = "Mediano", 
+                color = "Negro y blanco", 
+                caracteristica = "Entrenado, obediente", 
+                foto = "", 
+                Estado = "Adoptado", 
+                DistritoId = 4 
+            }
+        };
+        context.Mascota.AddRange(mascotas);
+        await context.SaveChangesAsync();
+        Console.WriteLine("✅ 5 mascotas de prueba creadas");
+    }
+
+    if (!context.Establecimiento.Any())
+    {
+        var establecimientos = new List<Establecimientos>
+        {
+            new Establecimientos { 
+                nombre = "Veterinaria San Francisco", 
+                direccion = "Av. Independencia #123", 
+                telefono = "4-661234", 
+                ubicacion = "-19.0414, -65.2589", 
+                horario = "Lun-Vie 8:00-18:00", 
+                capacidad = 50, 
+                calificacion = 4.5m, 
+                estado = "Activo", 
+                tipoEstableciminetoId = 1, 
+                DistritoId = 1 
+            },
+            new Establecimientos { 
+                nombre = "Albergue Patitas Felices", 
+                direccion = "Calle Junín #456", 
+                telefono = "4-665678", 
+                ubicacion = "-19.0450, -65.2600", 
+                horario = "Lun-Dom 9:00-17:00", 
+                capacidad = 100, 
+                calificacion = 4.8m, 
+                estado = "Activo", 
+                tipoEstableciminetoId = 2, 
+                DistritoId = 2 
+            }
+        };
+        context.Establecimiento.AddRange(establecimientos);
+        await context.SaveChangesAsync();
+        Console.WriteLine("✅ 2 establecimientos de prueba creados");
+    }
+
+    Console.WriteLine("✅ Seed data completado");
 }
