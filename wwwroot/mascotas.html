@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mascotas · Proyecto C.A.S.A.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body data-page="mascotas">
+  <div id="casa-nav"></div>
+
+  <main id="contenido" class="casa-main">
+    <header class="casa-hero casa-hero--page">
+      <div class="container">
+        <h1>Mascotas en adopción</h1>
+        <p>Cada una tiene su historia. Filtra por especie, tamaño o distrito y conoce a tu próximo compañero.</p>
+      </div>
+    </header>
+
+    <div class="container casa-overlap">
+      <form class="casa-filters" id="filtros" role="search" aria-label="Filtrar mascotas" onsubmit="return false">
+        <input class="form-control casa-search" type="search" id="f-texto" placeholder="Buscar por nombre, color o característica" aria-label="Buscar mascotas">
+        <select class="form-select" id="f-especie" aria-label="Especie"><option value="">Todas las especies</option></select>
+        <select class="form-select" id="f-tamano" aria-label="Tamaño"><option value="">Todos los tamaños</option></select>
+        <select class="form-select" id="f-estado" aria-label="Estado"><option value="">Todos los estados</option></select>
+        <select class="form-select" id="f-distrito" aria-label="Distrito"><option value="">Todos los distritos</option></select>
+      </form>
+    </div>
+
+    <section class="container casa-section" aria-live="polite">
+      <p class="fw-bold text-muted mb-3" id="conteo"></p>
+      <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-xl-3" id="grid"></div>
+    </section>
+  </main>
+
+  <!-- Solicitud de adopción -->
+  <div class="modal fade" id="modalAdopcion" tabindex="-1" aria-labelledby="modalAdopcionTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="formAdopcion" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title fs-4" id="modalAdopcionTitulo">Quiero adoptar a <span id="adopt-nombre"></span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted">Enviaremos tu solicitud al equipo. Te contactarán para coordinar la entrevista y el contrato.</p>
+          <label class="form-label" for="adopt-ciudadano">Tu número de ciudadano</label>
+          <input class="form-control" type="number" min="1" id="adopt-ciudadano" required>
+          <div class="invalid-feedback">Escribe tu número de ciudadano.</div>
+          <div class="form-text">Lo recordaremos en este navegador para tus próximas solicitudes.</div>
+          <div class="alert alert-danger mt-3 d-none" id="adopt-error" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-casa-ghost btn-casa btn-casa-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn-casa btn-casa-sm" id="adopt-enviar">Enviar solicitud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="casa-footer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="js/common.js"></script>
+  <script>
+    (async function () {
+      const E = CASA.endpoints, g = CASA.g;
+      const grid = document.getElementById('grid');
+      const conteo = document.getElementById('conteo');
+      let mascotas = [], distritosById = {};
+
+      /* ---------- Carga ---------- */
+      CASA.ui.skeletons(grid, 6, 'col');
+      try {
+        const [m, d] = await Promise.all([CASA.api.list(E.mascotas), CASA.api.listSoft(E.distritos)]);
+        mascotas = m;
+        distritosById = CASA.byId(d);
+      } catch (err) {
+        conteo.textContent = '';
+        CASA.ui.error(grid, err, E.mascotas);
+        return;
+      }
+
+      /* ---------- Filtros ---------- */
+      const fill = (id, values) => {
+        const sel = document.getElementById(id);
+        [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'es'))
+          .forEach((v) => sel.add(new Option(v, v)));
+      };
+      fill('f-especie', mascotas.map((m) => g(m, 'especie')));
+      fill('f-tamano',  mascotas.map((m) => g(m, 'tamaño', 'tamano')));
+      fill('f-estado',  mascotas.map((m) => g(m, 'estado')));
+      const selDistrito = document.getElementById('f-distrito');
+      Object.values(distritosById).forEach((d) => selDistrito.add(new Option(g(d, 'nombre'), g(d, 'id'))));
+
+      const val = (id) => document.getElementById(id).value;
+      function render() {
+        const q = CASA.strip(val('f-texto'));
+        const lista = mascotas.filter((m) => {
+          if (val('f-especie') && g(m, 'especie') !== val('f-especie')) return false;
+          if (val('f-tamano') && (g(m, 'tamaño', 'tamano')) !== val('f-tamano')) return false;
+          if (val('f-estado') && g(m, 'estado') !== val('f-estado')) return false;
+          if (val('f-distrito') && String(g(m, 'distritoId')) !== val('f-distrito')) return false;
+          if (q) {
+            const texto = CASA.strip([g(m, 'nombre'), g(m, 'color'), g(m, 'caracteristica'), g(m, 'especie')].join(' '));
+            if (!texto.includes(q)) return false;
+          }
+          return true;
+        });
+
+        conteo.textContent = lista.length === 1 ? '1 mascota encontrada' : `${lista.length} mascotas encontradas`;
+        if (!lista.length) {
+          CASA.ui.empty(grid, '🔍', 'No encontramos mascotas con esos filtros', 'Prueba quitando algún filtro o buscando otra palabra.');
+          return;
+        }
+        grid.innerHTML = lista.map((m) => `<div class="col">${CASA.petCard(m, distritosById, { adopt: true })}</div>`).join('');
+      }
+      document.getElementById('filtros').addEventListener('input', render);
+      render();
+
+      /* ---------- Solicitud de adopción ---------- */
+      const modalEl = document.getElementById('modalAdopcion');
+      const modal = new bootstrap.Modal(modalEl);
+      const form = document.getElementById('formAdopcion');
+      const inputCiudadano = document.getElementById('adopt-ciudadano');
+      const errBox = document.getElementById('adopt-error');
+      let mascotaElegida = null;
+
+      grid.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('[data-adopt]');
+        if (!btn) return;
+        mascotaElegida = Number(btn.dataset.adopt);
+        document.getElementById('adopt-nombre').textContent = btn.dataset.nombre;
+        inputCiudadano.value = CASA.session.getCiudadanoId();
+        errBox.classList.add('d-none');
+        form.classList.remove('was-validated');
+        modal.show();
+      });
+
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        form.classList.add('was-validated');
+        if (!form.checkValidity()) return;
+
+        const enviar = document.getElementById('adopt-enviar');
+        enviar.disabled = true;
+        errBox.classList.add('d-none');
+        try {
+          await CASA.api.post(E.solicitudes, {
+            fecha: new Date().toISOString(),
+            estado: 'Pendiente',
+            mascotaId: mascotaElegida,
+            ciudadanoId: Number(inputCiudadano.value)
+          });
+          CASA.session.setCiudadanoId(inputCiudadano.value);
+          modal.hide();
+          CASA.ui.toast('Solicitud enviada. Puedes seguirla en la sección Adopciones.', 'ok');
+        } catch (err) {
+          errBox.textContent = err.message;
+          errBox.classList.remove('d-none');
+        } finally {
+          enviar.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
