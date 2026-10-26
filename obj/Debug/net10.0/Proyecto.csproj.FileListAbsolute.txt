@@ -472,11 +472,13 @@ D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\Proyecto.genruntimeco
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\ref\Proyecto.dll
 D:\UPDS\Programacion web 2\proyecto-casa\bin\Debug\net10.0\dotnet-tools.json
 D:\UPDS\Programacion web 2\proyecto-casa\bin\Debug\net10.0\Proyecto.staticwebassets.runtime.json
-D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\07o6lgqd7b-{0}-wk624x1ot4-wk624x1ot4.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\m5agbdcd5j-{0}-carja782ui-carja782ui.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\dr58mfvz33-{0}-u57t10ebeh-u57t10ebeh.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\gfcuzkfxhp-{0}-fue293q6ep-fue293q6ep.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\6d01cs7w2n-{0}-khquc0bw1v-khquc0bw1v.gz
-D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\vuqy806l4g-{0}-1oraq5vq4f-1oraq5vq4f.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\iekvj2yxw5-{0}-8t12f501vx-8t12f501vx.gz
 D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\w5uzfb3jo9-{0}-ij8bsdmazu-ij8bsdmazu.gz
+D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\07o6lgqd7b-{0}-qf1x9u2q6x-qf1x9u2q6x.gz
+D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\fc2o0rf56h-{0}-nqvevuyjf6-nqvevuyjf6.gz
+D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\6lq7v1gfea-{0}-eywpbbvi8w-eywpbbvi8w.gz
+D:\UPDS\Programacion web 2\proyecto-casa\obj\Debug\net10.0\compressed\vuqy806l4g-{0}-c7v29bikqe-c7v29bikqe.gz

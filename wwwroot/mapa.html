@@ -53,7 +53,7 @@
               <span class="d-flex align-items-center gap-2"><span class="casa-pin" style="width:26px;height:26px;font-size:13px"><span>🩺</span></span> Veterinaria</span>
               <span class="d-flex align-items-center gap-2"><span class="casa-pin casa-pin--blue" style="width:26px;height:26px;font-size:13px"><span>🏠</span></span> Albergue</span>
             </div>
-            <p class="small text-muted mt-3 mb-0" id="nota-mapa"></p>
+            <p class="small text-muted mt-3 mb-0" id="nota-mapa">Límites oficiales de los distritos urbanos de Sucre.</p>
           </div>
         </aside>
       </div>
@@ -69,10 +69,10 @@
   <script src="js/common.js"></script>
   <script>
     (async function () {
-      const E = CASA.endpoints, g = CASA.g, esc = CASA.esc;
+      const g = CASA.g, esc = CASA.esc;
       const $ = (id) => document.getElementById(id);
 
-      /* ---------- Mapa base ---------- */
+      /* ---------- Mapa base centrado en Sucre ---------- */
       const map = L.map('map').setView([CASA.SUCRE.lat, CASA.SUCRE.lng], CASA.SUCRE.zoom);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -82,109 +82,120 @@
       const capaDistritos = L.featureGroup().addTo(map);
       const capaLugares = L.featureGroup().addTo(map);
 
-      /* ---------- Datos ---------- */
-      const [dis, est, tip, mas] = await Promise.allSettled([
-        CASA.api.list(E.distritos),
-        CASA.api.list(E.establecimientos),
-        CASA.api.list(E.tiposEstablecimiento),
-        CASA.api.list(E.mascotas)
-      ]);
+      // Mapa de colores de cinta correspondientes
+      const colorMap = {
+        'Naranja': '#fd7e14', // Distrito 1
+        'Azul':    '#0d6efd', // Distrito 2
+        'Verde':   '#198754', // Distrito 3
+        'Amarillo':'#ffc107', // Distrito 4
+        'Rojo':    '#dc3545'  // Distrito 5 (o ajusta el tono según prefieras)
+      };
 
-      if (dis.status !== 'fulfilled' && est.status !== 'fulfilled') {
-        CASA.ui.error($('map-status'), dis.reason, E.distritos, 'mb-4');
-        $('leyenda').innerHTML = '<p class="small text-muted">Sin datos para mostrar.</p>';
-        return;
+      try {
+        /* ---------- Cargar GeoJSON de Distritos ---------- */
+        const resGeo = await fetch('/data/distritos.json');
+        if (!resGeo.ok) throw new Error('No se pudo cargar el archivo distritos.geojson');
+        const geojsonFeatureCollection = await resGeo.json();
+
+        // Cargar también establecimientos si la API responde
+        let lugares = [];
+        try {
+          const resEst = await fetch(CASA.endpoints.establecimientos);
+          if (resEst.ok) lugares = await resEst.json();
+        } catch (e) { console.warn('No se pudieron cargar establecimientos', e); }
+
+        const poligonosMap = new Map();
+        const filasLeyenda = [];
+
+        L.geoJSON(geojsonFeatureCollection, {
+          style: function (feature) {
+            const props = feature.properties || {};
+            const colorNombre = props.colorCinta || 'Azul';
+            const colorHex = colorMap[colorNombre] || '#0d6efd';
+            return {
+              color: colorHex,
+              weight: 3,
+              fillColor: colorHex,
+              fillOpacity: 0.25
+            };
+          },
+          onEachFeature: function (feature, layer) {
+            const props = feature.properties || {};
+            const id = props.id;
+            const nombre = props.nombre || 'Distrito';
+            const cinta = props.colorCinta || '—';
+
+            poligonosMap.set(String(id), layer);
+
+            const nLugares = lugares.filter(e => g(e, 'distritoId') === id).length;
+
+            layer.bindTooltip(esc(nombre), { sticky: true });
+            layer.bindPopup(`
+              <div class="p-1">
+                <h4 class="fw-bold mb-1">${esc(nombre)}</h4>
+                <div>🎀 Cinta: ${esc(cinta)}</div>
+                <div>🩺 ${nLugares} establecimientos registrados</div>
+                <span class="badge bg-primary mt-1">Distrito Urbano</span>
+              </div>
+            `);
+
+            filasLeyenda.push({ id, nombre, color: colorMap[cinta] || '#0d6efd', nLugares });
+          }
+        }).addTo(capaDistritos);
+
+        /* ---------- Generar Leyenda Lateral ---------- */
+        $('leyenda').innerHTML = filasLeyenda.length
+          ? filasLeyenda.map((f) => `
+              <button type="button" class="casa-legend-item" data-id="${esc(f.id)}">
+                <span class="casa-legend-swatch" style="--ribbon:${esc(f.color)}"></span>
+                <span>${esc(f.nombre)}</span>
+                <span class="count">${f.nLugares}</span>
+              </button>`).join('')
+          : '<p class="small text-muted mb-0">Aún no hay distritos registrados.</p>';
+
+        $('leyenda').addEventListener('click', (ev) => {
+          const b = ev.target.closest('.casa-legend-item');
+          if (!b) return;
+          const capa = poligonosMap.get(b.dataset.id);
+          if (capa) {
+            map.fitBounds(capa.getBounds(), { padding: [30, 30] });
+            capa.openPopup();
+          }
+        });
+
+        /* ---------- Renderizar Pines de Establecimientos ----------
+        let sinCoordenadas = 0;
+        lugares.forEach((e) => {
+          const ll = CASA.parseLatLng ? CASA.parseLatLng(g(e, 'ubicacion')) : null;
+          if (!ll) { sinCoordenadas++; return; }
+          
+          const esAlbergue = /albergue|refugio|hogar/.test(CASA.strip(g(e, 'nombre') || ''));
+          const icon = L.divIcon({
+            className: '',
+            html: `<div class="casa-pin ${esAlbergue ? 'casa-pin--blue' : ''}"><span>${esAlbergue ? '🏠' : '🩺'}</span></div>`,
+            iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -36]
+          });
+
+          L.marker(ll, { icon, title: g(e, 'nombre') || '' })
+            .bindPopup(`<h4>${esc(g(e, 'nombre') || 'Sin nombre')}</h4>`)
+            .addTo(capaLugares);
+        });
+        */
+
+        // Ajustar zoom general a las capas cargadas
+        if (capaDistritos.getLayers().length) {
+          map.fitBounds(capaDistritos.getBounds(), { padding: [30, 30] });
+        }
+
+      } catch (err) {
+        console.error('Error cargando el mapa GeoJSON:', err);
+        CASA.ui.error($('map-status'), err, '/data/distritos.geojson', 'mb-4');
+        $('leyenda').innerHTML = '<p class="small text-muted">Error al cargar los límites del mapa.</p>';
       }
 
-      const distritos = dis.status === 'fulfilled' ? dis.value : [];
-      const lugares = est.status === 'fulfilled' ? est.value : [];
-      const tiposById = tip.status === 'fulfilled' ? CASA.byId(tip.value) : {};
-      const mascotas = mas.status === 'fulfilled' ? mas.value : [];
-
-      /* ---------- Distritos: polígonos con su color de cinta ---------- */
-      const poligonos = new Map();   // id → capa
-      const filasLeyenda = distritos.map((d) => {
-        const id = g(d, 'id');
-        const color = CASA.cintaColor(g(d, 'colorCinta'));
-        const pts = CASA.parsePolygon(g(d, 'poligono'));
-        const nLugares = lugares.filter((e) => g(e, 'distritoId') === id).length;
-        const nMascotas = mascotas.filter((m) => g(m, 'distritoId') === id).length;
-
-        if (pts) {
-          const capa = L.polygon(pts, { color, weight: 3, fillColor: color, fillOpacity: 0.22 })
-            .bindTooltip(esc(g(d, 'nombre') || 'Distrito'), { sticky: true })
-            .bindPopup(`<h4>${esc(g(d, 'nombre') || 'Distrito')}</h4>
-              <div>🎀 Cinta: ${esc(g(d, 'colorCinta') || '—')}</div>
-              <div>🩺 ${nLugares} ${nLugares === 1 ? 'lugar' : 'lugares'}</div>
-              <div>🐶 ${nMascotas} ${nMascotas === 1 ? 'mascota' : 'mascotas'}</div>`)
-            .addTo(capaDistritos);
-          poligonos.set(id, capa);
-        }
-        return { id, nombre: g(d, 'nombre') || 'Distrito', color, tienePoligono: !!pts, nLugares };
-      });
-
-      $('leyenda').innerHTML = filasLeyenda.length
-        ? filasLeyenda.map((f) => `
-            <button type="button" class="casa-legend-item" data-id="${esc(f.id)}" ${f.tienePoligono ? '' : 'disabled title="Este distrito no tiene un polígono válido"'}>
-              <span class="casa-legend-swatch" style="--ribbon:${esc(f.color)}"></span>
-              <span>${esc(f.nombre)}</span>
-              <span class="count">${f.nLugares}</span>
-            </button>`).join('')
-        : '<p class="small text-muted mb-0">Aún no hay distritos registrados.</p>';
-
-      $('leyenda').addEventListener('click', (ev) => {
-        const b = ev.target.closest('.casa-legend-item');
-        const capa = b && polygonoPorId(b.dataset.id);
-        if (!capa) return;
-        map.fitBounds(capa.getBounds(), { padding: [30, 30] });
-        capa.openPopup();
-      });
-      function polygonoPorId(id) { return [...poligonos].find(([k]) => String(k) === String(id))?.[1]; }
-
-      /* ---------- Establecimientos: pines ---------- */
-      const pines = new Map();       // id → marcador
-      let sinCoordenadas = 0;
-      lugares.forEach((e) => {
-        const ll = CASA.parseLatLng(g(e, 'ubicacion'));
-        if (!ll) { sinCoordenadas++; return; }
-        const tipo = tiposById[g(e, 'tipoEstableciminetoId', 'tipoEstablecimientoId')] || g(e, 'tipoEstableciminetos');
-        const nombreTipo = g(tipo, 'nombre') || 'Establecimiento';
-        const esAlbergue = /albergue|refugio|hogar/.test(CASA.strip(nombreTipo));
-        const icon = L.divIcon({
-          className: '',
-          html: `<div class="casa-pin ${esAlbergue ? 'casa-pin--blue' : ''}"><span>${esAlbergue ? '🏠' : '🩺'}</span></div>`,
-          iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -36]
-        });
-        const tel = String(g(e, 'telefono') || '');
-        const marcador = L.marker(ll, { icon, title: g(e, 'nombre') || '' })
-          .bindPopup(`<h4>${esc(g(e, 'nombre') || 'Sin nombre')}</h4>
-            <div>${esc(nombreTipo)}${g(e, 'estado') ? ' · ' + esc(g(e, 'estado')) : ''}</div>
-            ${g(e, 'direccion') ? `<div>📍 ${esc(g(e, 'direccion'))}</div>` : ''}
-            ${g(e, 'horario') ? `<div>🕒 ${esc(g(e, 'horario'))}</div>` : ''}
-            ${tel ? `<div>📞 <a href="tel:${esc(tel.replace(/[^\d+]/g, ''))}">${esc(tel)}</a></div>` : ''}`)
-          .addTo(capaLugares);
-        pines.set(String(g(e, 'id')), marcador);
-      });
-
-      /* ---------- Encuadre, notas y capas ---------- */
-      const todo = L.featureGroup([capaDistritos, capaLugares]);
-      if (todo.getLayers().some((l) => l.getLayers().length)) map.fitBounds(todo.getBounds(), { padding: [30, 30] });
-
-      const notas = [];
-      if (distritos.some((d) => !CASA.parsePolygon(g(d, 'poligono')))) notas.push('Algunos distritos no tienen un polígono que el mapa pueda leer.');
-      if (sinCoordenadas) notas.push(`${sinCoordenadas} ${sinCoordenadas === 1 ? 'lugar no tiene' : 'lugares no tienen'} coordenadas válidas ("latitud, longitud").`);
-      $('nota-mapa').textContent = notas.join(' ');
-
+      /* ---------- Controles de Capas (Switches) ---------- */
       $('t-distritos').addEventListener('change', (ev) => ev.target.checked ? capaDistritos.addTo(map) : map.removeLayer(capaDistritos));
       $('t-lugares').addEventListener('change', (ev) => ev.target.checked ? capaLugares.addTo(map) : map.removeLayer(capaLugares));
-
-      // Llegada desde "Ver en el mapa": mapa.html?establecimiento=ID
-      const objetivo = new URLSearchParams(location.search).get('establecimiento');
-      if (objetivo && pines.has(objetivo)) {
-        const pin = pines.get(objetivo);
-        map.setView(pin.getLatLng(), 17);
-        pin.openPopup();
-      }
     })();
   </script>
 </body>
